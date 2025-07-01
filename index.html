@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Управление тепловозами и машинистами</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Favicons -->
+    <link href="assets/images/favicon.png" rel="icon" />
+  </head>
+  <body>
+    <!-- ----------------------------------------------------
+     Общая кнопка для добавления новой основной колонки
+----------------------------------------------------- -->
+    <!-- Шапка с логотипом и кнопкой -->
+    <div class="app-header">
+      <img src="./assets/images/logo.png" alt="Логотип" class="logo" />
+      <div class="header-left">
+        <h1>Тақсимоти бригадҳои локомативии пойгоҳи минтақаи Суғд</h1>
+      </div>
+      <button id="add-column-btn">+ Сутун илова кунед</button>
+    </div>
+
+    <!-- ----------------------------------------------------
+     Контейнер для всех колонок (будут создаваться JS)
+----------------------------------------------------- -->
+    <div id="board" class="board"></div>
+
+    <!-- SortableJS (для drag & drop) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- Наш обновлённый скрипт -->
+    <script src="index.js"></script>
+  </body>
+</html>
