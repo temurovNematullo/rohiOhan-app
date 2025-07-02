@@ -58,7 +58,7 @@ body {
 #add-column-btn {
   padding: 0.5rem 1rem;
   font-size: 1rem;
-  background-color: #79baff;
+  background-color: #a1ccfa;
   color: rgb(0, 0, 0);
   border: none;
   border-radius: 8px;
@@ -88,9 +88,8 @@ body {
 /* --------------------- */
 /* Основные колонки */
 .column {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  background: rgba(217, 252, 255, 0.7);
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
@@ -98,7 +97,6 @@ body {
   -webkit-backdrop-filter: blur(6px);
   flex: 1 1 calc(33.333% - 24px); /* по умолчанию — 3 в ряд */
   min-width: 300px;
-
   height: auto;
   align-self: flex-start;
   box-sizing: border-box;
@@ -107,10 +105,11 @@ body {
 .column-header {
   display: flex;
   justify-content: space-between;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  background: rgba(134, 212, 212, 0.85);
   align-items: center;
   padding: 12px;
-  background: #e2e2e2;
-  border-bottom: 1px solid #ccc;
 }
 
 .column-header h2 {
@@ -151,7 +150,7 @@ body {
   padding: 8px 2px;
   margin: 6px 20px 6px 220px;
   font-size: 14px;
-  background: #79baff;
+  background: #a1ccfa;
   color: #000000;
   border: none;
   border-radius: 4px;
@@ -178,7 +177,7 @@ body {
 /* --------------------- */
 /* Подколонка */
 .subcolumn {
-  background: #fff;
+  background: #fcf1f1;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -196,24 +195,31 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 8px;
-  background: #f0f0f0;
+  background: #ffe6ec;
   text-align: center;
   font-size: 16px;
-  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.06);
+  border: none;
 }
 
 /* Кнопка “Удалить подколонку” */
 .delete-subcolumn-btn {
-  background: #f44336;
-  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff9292;
+  color: #000000;
   border: none;
   border-radius: 3px;
   padding: 2px 4px;
-  font-size: 12px;
+  font-size: 18px;
+  width: 22px;
+  height: 22px;
   cursor: pointer;
 }
 .delete-subcolumn-btn:hover {
   background: #d32f2f;
+  color: #fff;
 }
 
 /* --------------------- */
@@ -234,13 +240,26 @@ body {
   margin: 6px 80px;
   padding: 6px 20px;
   font-size: 14px;
-  background: #4caf50;
-  color: white;
+  background: #9df1a0;
+  color: rgb(0, 0, 0);
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
-
+.delete-column-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff9292 !important;
+  color: #000000 !important;
+  font-size: 20px !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+.delete-column-btn:hover {
+  background: #d32f2f !important;
+  color: #fff !important;
+}
 .add-card-btn:hover {
   background: #45a049;
 }
@@ -347,6 +366,32 @@ body {
 .card-text {
   flex: 1;
 }
+
+/* Стили для перетаскивания колонок */
+.sortable-ghost-column {
+  opacity: 0.5;
+  background: #e0f7fa;
+  border: 2px dashed #26c6da;
+}
+
+.column-header {
+  cursor: grab;
+  user-select: none; /* Запрещаем выделение текста при перетаскивании */
+}
+
+.column-header:active {
+  cursor: grabbing;
+}
+
+/* Делаем доску flex-контейнером для плавного перетаскивания */
+#board {
+  display: flex;
+  gap: 15px;
+  padding: 10px;
+  min-height: 100vh;
+  align-items: flex-start;
+}
+
 @media (max-width: 1200px) {
   .column {
     flex: 1 1 calc(50% - 24px);

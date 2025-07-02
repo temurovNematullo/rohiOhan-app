@@ -4,7 +4,7 @@
 // 1) Работа с IndexedDB
 // =====================
 const DB_NAME = "LocomotivesEngineersDB";
-const DB_VERSION = 2; // Повысили версию, чтобы добавить новое хранилище “columns”
+const DB_VERSION = 3; // Повысили версию, чтобы добавить новое хранилище “columns”
 let db;
 
 /**
@@ -27,6 +27,7 @@ function openDB() {
         });
         // Поля: columnId (unique), title (название колонки)
         store.createIndex("by_title", "title", { unique: false });
+        store.createIndex("by_order", "order", { unique: false });
       }
 
       // 2. Хранилище для подколонок
@@ -72,7 +73,7 @@ function addColumnToDB(title) {
     const tx = db.transaction("columns", "readwrite");
     const store = tx.objectStore("columns");
     const columnId = "col-" + Date.now(); // генерируем уникальный columnId
-    const newColumn = { columnId, title };
+    const newColumn = { columnId, title, order: Date.now() };
     const request = store.add(newColumn);
     request.onsuccess = () => resolve(newColumn);
     request.onerror = (e) => reject(e.target.error);
@@ -395,6 +396,11 @@ async function renderColumn(column) {
     const newSub = await addSubcolumnToDB(column.columnId, title);
     renderSubcolumn(newSub);
   });
+  // Добавляем атрибут для Sortable (если ещё нет)
+  colDiv.setAttribute("data-sortable-column", column.columnId);
+
+  // Вставляем колонку в доску
+  board.appendChild(colDiv);
 }
 async function createAssistantCard(columnId, subId) {
   const position = prompt("Позиция помощника машиниста:");
@@ -479,12 +485,19 @@ function renderSubcolumn(sub) {
     onEnd: async (evt) => {
       const cardElem = evt.item;
       const cardId = cardElem.getAttribute("data-id");
-      const newColumnId = cardElem.parentElement
-        .closest(".column")
-        .getAttribute("data-column");
-      const newSubId = cardElem.parentElement
-        .closest(".subcolumn")
-        .getAttribute("data-sub");
+
+      // Находим новую колонку и подколонку
+      const newColumn = evt.to.closest(".column");
+      const newSubcolumn = evt.to.closest(".subcolumn");
+
+      if (!newColumn || !newSubcolumn) {
+        console.error("Не удалось найти целевую колонку или подколонку");
+        return;
+      }
+
+      const newColumnId = newColumn.getAttribute("data-column");
+      const newSubId = newSubcolumn.getAttribute("data-sub");
+
       await moveCardInDB(cardId, newColumnId, newSubId);
     },
   });
@@ -759,7 +772,26 @@ async function openEditCardModal(cardElem) {
     }
   };
 }
+function updateColumnOrder(columnsOrder) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("columns", "readwrite");
+    const store = tx.objectStore("columns");
 
+    columnsOrder.forEach((columnId, index) => {
+      const request = store.get(columnId);
+      request.onsuccess = () => {
+        const column = request.result;
+        if (column) {
+          column.order = index;
+          store.put(column);
+        }
+      };
+    });
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e.target.error);
+  });
+}
 /**
  * Удаляет карточку из DOM и из IndexedDB
  * @param {HTMLElement} cardElem
@@ -828,5 +860,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!title) return;
     const newCol = await addColumnToDB(title);
     await renderColumn(newCol);
+  });
+  // 7) Инициализация перетаскивания колонок
+  const board = document.getElementById("board");
+
+  new Sortable(board, {
+    group: "columns",
+    animation: 200,
+    handle: ".column-header",
+    ghostClass: "sortable-ghost-column",
+    onEnd: async (evt) => {
+      // Получаем новый порядок колонок
+      const columnsOrder = Array.from(board.children).map((col) =>
+        col.getAttribute("data-column")
+      );
+
+      // Сохраняем порядок в IndexedDB
+      await updateColumnOrder(columnsOrder);
+
+      console.log("Порядок колонок сохранен", columnsOrder);
+    },
   });
 });
