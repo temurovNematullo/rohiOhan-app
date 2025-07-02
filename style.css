@@ -183,7 +183,11 @@ body {
   flex-direction: column;
   position: relative;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  flex: 1 1 calc(50% - 12px); /* ← две колонки с отступом */
+  flex: 1 1 100%; /* Одна колонка по умолчанию */
+}
+
+.subcolumns:has(.subcolumn:nth-child(n + 6)) .subcolumn {
+  flex: 1 1 calc(50% - 12px); /* Две колонки, если подколонок 6 и больше */
   min-width: 240px;
   max-width: 100%; /* не ограничиваем сверху */
   align-self: flex-start; /* добавьте это, чтобы каждая подколонка имела свою высоту */
