@@ -16,9 +16,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   padding: 1rem 2rem;
-  background: rgba(30, 30, 30, 0.6); /* прозрачный тёмный */
+  background: rgba(56, 52, 55, 0.6); /* прозрачный тёмный */
   backdrop-filter: blur(8px); /* блюр эффект */
   -webkit-backdrop-filter: blur(8px); /* поддержка для Safari */
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
@@ -34,6 +33,19 @@ body {
 }
 
 .header-left {
+}
+
+.clear-subcolumn-btn {
+  background: #ff9800;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.clear-subcolumn-btn:hover {
+  background: #e67c00;
 }
 
 .header-left h1 {
@@ -73,21 +85,20 @@ body {
 /* --------------------- */
 /* Основные колонки */
 .column {
-  background: #f7f7f7;
+  background: rgba(255, 255, 255, 0.7);
   border: 1px solid #ddd;
   border-radius: 6px;
   display: flex;
   flex-direction: column;
-  margin-bottom: 16px; /* отступ снизу, если переносится на новую строку */
-  background: rgba(255, 255, 255, 0.7);
+  margin-bottom: 16px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  /* Делаем так, чтобы при трёх колонках они были по ~1/3 ширины доски */
-  /*flex: 1 1 calc(33.333% - 16px);*/
-  flex: 1 0 auto;
-  height: auto; /* Явное указание */
-  align-self: flex-start; /* Ключевое изменение - выравнивание по началу */
-  min-width: 500px; /* чтобы при сжатии не становились слишком узкими */
+  flex: 1 1 calc(33.333% - 24px); /* по умолчанию — 3 в ряд */
+  min-width: 300px;
+
+  height: auto;
+  align-self: flex-start;
+  box-sizing: border-box;
 }
 
 .column-header {
@@ -151,14 +162,12 @@ body {
 /* Контейнер подколонок */
 .subcolumns {
   display: flex;
-  gap: 8px;
-  padding: 12px;
-  flex: 1 1 100%;
-  align-items: flex-start;
-  justify-content: stretch; /* растягиваем подколонки на всю ширину */
   flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
   width: 100%;
   box-sizing: border-box;
+  justify-content: flex-start;
 }
 
 /* --------------------- */
@@ -169,10 +178,10 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
-  flex: 1 1 200px; /* теперь подколонки растягиваются */
-  min-width: 200px;
-  max-width: 1fr;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  flex: 1 1 calc(50% - 12px); /* ← две колонки с отступом */
+  min-width: 240px;
+  max-width: 100%; /* не ограничиваем сверху */
 }
 
 .subcolumn-header {
@@ -332,4 +341,18 @@ body {
 
 .card-text {
   flex: 1;
+}
+@media (max-width: 1200px) {
+  .column {
+    flex: 1 1 calc(50% - 24px);
+  }
+}
+
+/* 📱 Мобильные — 1 колонка */
+@media (max-width: 768px) {
+  .column {
+    flex: 1 1 100%;
+    min-width: unset;
+    max-width: 100%;
+  }
 }

@@ -407,9 +407,9 @@ async function renderColumn(column) {
 
     // Рендерим подколонки
     subs.forEach(renderSubcolumn);
-    directCardsContainer.style.display = "none"; // Скрываем контейнер для прямого перетаскивания
   } else {
-    directCardsContainer.style.display = "block"; // Показываем контейнер для прямого перетаскивания
+    enableDirectCardDrop(column.columnId);
+    // Показываем контейнер для прямого перетаскивания
   }
 
   // Кнопка "+ Подколонку"
@@ -483,8 +483,13 @@ function renderSubcolumn(sub) {
   const delBtn = document.createElement("button");
   delBtn.classList.add("delete-subcolumn-btn");
   delBtn.textContent = "×";
+  const clearBtn = document.createElement("button");
+  clearBtn.classList.add("clear-subcolumn-btn");
+  clearBtn.textContent = "🧹";
+  clearBtn.title = "Очистить все карточки";
+
   subDiv.appendChild(header);
-  header.append(titleEl, delBtn);
+  header.append(titleEl, delBtn, clearBtn);
 
   // 2) Контейнер для карточек
   const cardsContainer = document.createElement("div");
@@ -511,7 +516,6 @@ function renderSubcolumn(sub) {
       cardsContainer.appendChild(card);
       await moveCardInDB(cardId, sub.columnId, sub.subId);
     });
-    directCardsContainer.style.display = "none";
   }
 
   // 5) Инициализация SortableJS
@@ -536,29 +540,57 @@ function renderSubcolumn(sub) {
     if (!confirm(`Удалить подколонку "${sub.title}" и все её карточки?`))
       return;
 
-    // Переносим карточки обратно в основную колонку
+    const cardsContainer = document.getElementById(
+      `${sub.columnId}-${sub.subId}`
+    );
+    const directCardsContainer = document.getElementById(
+      `direct-cards-${sub.columnId}`
+    );
+    const subsContainer = document.querySelector(`#subs-${sub.columnId}`);
+
+    // Переносим карточки обратно в колонку
     const cards = Array.from(cardsContainer.children);
-    if (directCardsContainer) {
-      cards.forEach(async (card) => {
-        const cardId = card.getAttribute("data-id");
+    for (const card of cards) {
+      const cardId = card.getAttribute("data-id");
+      if (directCardsContainer) {
         directCardsContainer.appendChild(card);
         await moveCardInDB(cardId, sub.columnId, null);
-      });
-      directCardsContainer.style.display = "block";
+      }
     }
 
     await deleteSubcolumnFromDB(sub.subId);
-    subDiv.remove();
 
-    // Если это была последняя подколонка - удаляем контейнер
-    if (subsContainer.children.length === 0) {
+    // Удаляем DOM-элемент подколонки
+    const subDiv = subsContainer.querySelector(`[data-sub="${sub.subId}"]`);
+    if (subDiv) subDiv.remove();
+
+    // Удаляем из массива subs
+    subs = subs.filter((s) => s.subId !== sub.subId);
+
+    // Если это была последняя подколонка — убираем контейнер и возвращаем direct drop
+    if (subs.length === 0 && subsContainer) {
       subsContainer.remove();
+      enableDirectCardDrop(sub.columnId);
     }
   });
 
   // 7) Обработчик добавления карточки
   addCardBtn.addEventListener("click", () => {
     openAddCardModal(sub.columnId, sub.subId);
+  });
+
+  clearBtn.addEventListener("click", async () => {
+    if (!confirm(`Удалить ВСЕ карточки из подколонки "${sub.title}"?`)) return;
+
+    const cardsContainer = document.getElementById(
+      `${sub.columnId}-${sub.subId}`
+    );
+    const cards = Array.from(cardsContainer.children);
+    for (const card of cards) {
+      const cardId = card.getAttribute("data-id");
+      await deleteCardFromDB(cardId);
+      card.remove();
+    }
   });
 }
 
@@ -920,6 +952,26 @@ async function deleteCardHandler(cardElem) {
 // ========================================
 // 4) Инициализация: собираем воедино всё
 // ========================================
+
+function enableDirectCardDrop(columnId) {
+  const directCardsContainer = document.getElementById(
+    `direct-cards-${columnId}`
+  );
+  if (!directCardsContainer) return;
+
+  new Sortable(directCardsContainer, {
+    group: "cards",
+    animation: 150,
+    ghostClass: "sortable-ghost",
+    onEnd: async (evt) => {
+      const cardElem = evt.item;
+      const cardId = cardElem.getAttribute("data-id");
+      await moveCardInDB(cardId, columnId, null);
+    },
+  });
+
+  directCardsContainer.style.display = "block";
+}
 
 /**
  * Главный init-функция, срабатывающая после загрузки DOM
