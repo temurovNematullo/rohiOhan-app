@@ -446,7 +446,7 @@ async function renderColumn(column) {
       subsContainer.classList.add("subcolumns");
       subsContainer.id = `subs-${column.columnId}`;
       colDiv.insertBefore(subsContainer, addSubBtn);
-      directCardsContainer.style.display = "none";
+      // directCardsContainer.style.display = "none";
     }
 
     renderSubcolumn(newSub);
