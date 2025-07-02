@@ -17,10 +17,11 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2rem;
-  background: rgba(56, 52, 55, 0.6); /* прозрачный тёмный */
+  background: rgba(211, 211, 211, 0.6); /* прозрачный тёмный */
   backdrop-filter: blur(8px); /* блюр эффект */
   -webkit-backdrop-filter: blur(8px); /* поддержка для Safari */
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -49,16 +50,16 @@ body {
 }
 
 .header-left h1 {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   margin: 0;
-  color: #ffffff;
+  color: #0c0c0c;
 }
 
 #add-column-btn {
   padding: 0.5rem 1rem;
   font-size: 1rem;
-  background-color: #2c77c7;
-  color: white;
+  background-color: #79baff;
+  color: rgb(0, 0, 0);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -66,7 +67,9 @@ body {
 }
 
 #add-column-btn:hover {
-  background-color: #003e81;
+  background-color: #2f659e;
+  transition: background-color 0.4s, color 0.2s;
+  color: #fff;
 }
 
 /* Общие стили доски */
@@ -148,14 +151,16 @@ body {
   padding: 8px 2px;
   margin: 6px 20px 6px 220px;
   font-size: 14px;
-  background: #2196f3;
-  color: #fff;
+  background: #79baff;
+  color: #000000;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
 .add-subcolumn-btn:hover {
-  background: #1976d2;
+  background-color: #2f659e;
+  transition: background-color 0.4s, color 0.2s;
+  color: #fff;
 }
 
 /* --------------------- */
