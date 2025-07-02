@@ -206,38 +206,6 @@ function deleteSubcolumnFromDB(subId) {
   });
 }
 
-/**
- * Создаёт карточку помощника машиниста, рендерит в DOM и сохраняет в IndexedDB
- * @param {string} columnId
- * @param {string} subId
- */
-async function createAssistantCard(columnId, subId) {
-  const position = prompt("Должность помощника:");
-  if (!position) return;
-  const name = prompt("ФИО помощника машиниста:");
-  if (!name) return;
-  const code = prompt("Табельный номер:");
-  if (!code) return;
-  const photoUrl = prompt("Ссылка на фото (опционально):");
-
-  const id = "ast-" + Date.now();
-  const newCard = {
-    id,
-    type: "assistant",
-    name,
-    code,
-    position,
-    photoUrl,
-    columnId,
-    subId,
-  };
-
-  await addCardToDB(newCard);
-  const container = document.getElementById(`${columnId}-${subId}`);
-  const cardElem = createCardElement(newCard);
-  container.appendChild(cardElem);
-}
-
 // ------------- Работа с хранилищем "cards" -------------
 
 /**
@@ -267,17 +235,6 @@ function updateCardInDB(card) {
     const request = store.put(card);
     request.onsuccess = () => resolve();
     request.onerror = (e) => reject(e.target.error);
-
-    // при обновлении DOM после сохранения:
-    const img = cardElem.querySelector("img");
-    if (img) {
-      img.src = newPhoto;
-    } else if (newPhoto) {
-      const newImg = document.createElement("img");
-      newImg.src = newPhoto;
-      newImg.classList.add("card-photo");
-      cardElem.insertBefore(newImg, cardElem.firstChild);
-    }
   });
 }
 
@@ -317,20 +274,19 @@ function getAllCards() {
  * @param {string} newSubId
  * @returns {Promise<void>}
  */
-function moveCardInDB(cardId, newColumnId, newSubId = null) {
+function moveCardInDB(cardId, newColumnId, newSubId) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("cards", "readwrite");
     const store = tx.objectStore("cards");
     const getReq = store.get(cardId);
-
     getReq.onsuccess = function (event) {
       const card = event.target.result;
       if (!card) {
-        reject("Карточка не найдена");
+        reject("Карточка не найдена при перемещении");
         return;
       }
       card.columnId = newColumnId;
-      card.subId = newSubId; // Может быть null
+      card.subId = newSubId;
       const updateReq = store.put(card);
       updateReq.onsuccess = () => resolve();
       updateReq.onerror = (e) => reject(e.target.error);
@@ -349,6 +305,16 @@ function moveCardInDB(cardId, newColumnId, newSubId = null) {
  * @param {Object} column – columnId, title
  */
 async function renderColumn(column) {
+  // 1. Шаблон для DOM-структуры колонки
+  //    <div class="column" data-column="columnId">
+  //      <div class="column-header">
+  //        <h2>title</h2>
+  //        <button class="delete-column-btn">×</button>
+  //      </div>
+  //      <div class="subcolumns" id="subs-<columnId>"></div>
+  //      <button class="add-subcolumn-btn" data-column="columnId">+ Подколонку</button>
+  //    </div>
+
   const board = document.getElementById("board");
 
   // Обёртка для колонки
@@ -356,7 +322,7 @@ async function renderColumn(column) {
   colDiv.classList.add("column");
   colDiv.setAttribute("data-column", column.columnId);
 
-  // Заголовок колонки
+  // Заголовок колонки + кнопка “Удалить колонку”
   const header = document.createElement("div");
   header.classList.add("column-header");
   const h2 = document.createElement("h2");
@@ -367,7 +333,7 @@ async function renderColumn(column) {
   delColBtn.classList.add("delete-column-btn");
   delColBtn.textContent = "×";
   delColBtn.style.cssText = `
-    background:rgb(255, 124, 114);
+    background: #f44336;
     color: #fff;
     border: none;
     border-radius: 3px;
@@ -382,76 +348,79 @@ async function renderColumn(column) {
       )
     )
       return;
+    // 1) Удаляем из IndexedDB
     await deleteColumnFromDB(column.columnId);
+    // 2) Удаляем из DOM
     colDiv.remove();
   });
 
   header.append(h2, delColBtn);
   colDiv.appendChild(header);
 
-  // Получаем подколонки из БД
-  let subs = await getSubcolumnsByColumn(column.columnId);
+  // Контейнер для подколонок
+  const subsContainer = document.createElement("div");
+  subsContainer.classList.add("subcolumns");
+  subsContainer.id = `subs-${column.columnId}`;
+  colDiv.appendChild(subsContainer);
 
-  // Контейнер для карточек в колонке (если нет подколонок)
-  const directCardsContainer = document.createElement("div");
-  directCardsContainer.classList.add("card-container");
-  directCardsContainer.id = `direct-cards-${column.columnId}`;
-  colDiv.appendChild(directCardsContainer);
-
-  // Создаем контейнер для подколонок ТОЛЬКО если они есть
-  if (subs.length > 0) {
-    const subsContainer = document.createElement("div");
-    subsContainer.classList.add("subcolumns");
-    subsContainer.id = `subs-${column.columnId}`;
-    colDiv.appendChild(subsContainer);
-
-    // Рендерим подколонки
-    subs.forEach(renderSubcolumn);
-  } else {
-    enableDirectCardDrop(column.columnId);
-    // Показываем контейнер для прямого перетаскивания
-  }
-
-  // Кнопка "+ Подколонку"
+  // Кнопка «+ Подколонку»
   const addSubBtn = document.createElement("button");
   addSubBtn.classList.add("add-subcolumn-btn");
   addSubBtn.setAttribute("data-column", column.columnId);
   addSubBtn.textContent = "+ Подколонку";
   colDiv.appendChild(addSubBtn);
 
+  // Вставляем колонку в доску
   board.appendChild(colDiv);
 
-  // Инициализация SortableJS для колонки (если нет подколонок)
-  new Sortable(directCardsContainer, {
-    group: "cards",
-    animation: 150,
-    ghostClass: "sortable-ghost",
-    onEnd: async (evt) => {
-      const cardElem = evt.item;
-      const cardId = cardElem.getAttribute("data-id");
-      await moveCardInDB(cardId, column.columnId, null);
-    },
-  });
+  // 2. После того как DOM-элемент основной колонки создан,
+  //    нужно отрисовать её подколонки (из базы или дефолтные)
+  let subs = await getSubcolumnsByColumn(column.columnId);
 
-  // Обработчик кнопки "+ Подколонку"
+  // Если нет ни одной подколонки → создаём две дефолтные (“Отдых” / “На работе”)
+  if (subs.length === 0) {
+    // const def1 = await addSubcolumnToDB(column.columnId, 'Отдых');
+    // const def2 = await addSubcolumnToDB(column.columnId, 'На работе');
+    // subs = [def1, def2];
+    subs = [];
+  }
+
+  // Рендерим каждую подколонку
+  subs.forEach(renderSubcolumn);
+
+  // 3. Обрабатываем кнопку “+ Подколонку” для этой колонки
   addSubBtn.addEventListener("click", async () => {
     const title = prompt("Название новой подколонки:");
     if (!title) return;
-
     const newSub = await addSubcolumnToDB(column.columnId, title);
-
-    // Если это первая подколонка - создаем контейнер для подколонок
-    if (subs.length === 0) {
-      const subsContainer = document.createElement("div");
-      subsContainer.classList.add("subcolumns");
-      subsContainer.id = `subs-${column.columnId}`;
-      colDiv.insertBefore(subsContainer, addSubBtn);
-      // directCardsContainer.style.display = "none";
-    }
-
     renderSubcolumn(newSub);
-    subs.push(newSub); // Обновляем локальный список подколонок
   });
+}
+async function createAssistantCard(columnId, subId) {
+  const position = prompt("Позиция помощника машиниста:");
+  if (!position) return;
+  const name = prompt("ФИО помощника:");
+  if (!name) return;
+  const code = prompt("Код помощника:");
+  if (!code) return;
+  const photoUrl = prompt("Ссылка на фото помощника (опционально):");
+
+  const id = "ast-" + Date.now();
+  const newCard = {
+    id,
+    type: "assistant",
+    name,
+    code,
+    position,
+    photoUrl,
+    columnId,
+    subId,
+  };
+
+  await addCardToDB(newCard);
+  const container = document.getElementById(`${columnId}-${subId}`);
+  const cardElem = createCardElement(newCard);
+  container.appendChild(cardElem);
 }
 /**
  * Функция создаёт контейнер подколонки в DOM.
@@ -460,14 +429,6 @@ async function renderColumn(column) {
 function renderSubcolumn(sub) {
   const subsContainer = document.querySelector(`#subs-${sub.columnId}`);
   if (!subsContainer) return;
-
-  // Получаем контейнер основной колонки и его карточки
-  const directCardsContainer = document.querySelector(
-    `#direct-cards-${sub.columnId}`
-  );
-  const columnElement = document.querySelector(
-    `.column[data-column="${sub.columnId}"]`
-  );
 
   // 1) Создаём .subcolumn
   const subDiv = document.createElement("div");
@@ -483,13 +444,15 @@ function renderSubcolumn(sub) {
   const delBtn = document.createElement("button");
   delBtn.classList.add("delete-subcolumn-btn");
   delBtn.textContent = "×";
-  const clearBtn = document.createElement("button");
-  clearBtn.classList.add("clear-subcolumn-btn");
-  clearBtn.textContent = "🧹";
-  clearBtn.title = "Очистить все карточки";
+  delBtn.addEventListener("click", async () => {
+    if (!confirm(`Удалить подколонку "${sub.title}" и все её карточки?`))
+      return;
+    await deleteSubcolumnFromDB(sub.subId);
+    subDiv.remove();
+  });
 
+  header.append(titleEl, delBtn);
   subDiv.appendChild(header);
-  header.append(titleEl, delBtn, clearBtn);
 
   // 2) Контейнер для карточек
   const cardsContainer = document.createElement("div");
@@ -497,7 +460,7 @@ function renderSubcolumn(sub) {
   cardsContainer.id = `${sub.columnId}-${sub.subId}`;
   subDiv.appendChild(cardsContainer);
 
-  // 3) Кнопка "+ Добавить карточку"
+  // 3) Кнопка “+ Добавить карточку”
   const addCardBtn = document.createElement("button");
   addCardBtn.classList.add("add-card-btn");
   addCardBtn.setAttribute("data-column", sub.columnId);
@@ -505,20 +468,10 @@ function renderSubcolumn(sub) {
   addCardBtn.textContent = "Добавить";
   subDiv.appendChild(addCardBtn);
 
-  // Вставляем подколонку в DOM
+  // Вставляем подколонку в соответствующий контейнер
   subsContainer.appendChild(subDiv);
 
-  // 4) Переносим карточки из основной колонки (если есть)
-  if (directCardsContainer && directCardsContainer.children.length > 0) {
-    const cards = Array.from(directCardsContainer.children);
-    cards.forEach(async (card) => {
-      const cardId = card.getAttribute("data-id");
-      cardsContainer.appendChild(card);
-      await moveCardInDB(cardId, sub.columnId, sub.subId);
-    });
-  }
-
-  // 5) Инициализация SortableJS
+  // 4) Инициализируем SortableJS для нового container карточек
   new Sortable(cardsContainer, {
     group: "cards",
     animation: 150,
@@ -526,71 +479,19 @@ function renderSubcolumn(sub) {
     onEnd: async (evt) => {
       const cardElem = evt.item;
       const cardId = cardElem.getAttribute("data-id");
-      const newColumnId = cardElem
+      const newColumnId = cardElem.parentElement
         .closest(".column")
         .getAttribute("data-column");
-      const newSubId =
-        cardElem.closest(".subcolumn")?.getAttribute("data-sub") || null;
+      const newSubId = cardElem.parentElement
+        .closest(".subcolumn")
+        .getAttribute("data-sub");
       await moveCardInDB(cardId, newColumnId, newSubId);
     },
   });
 
-  // 6) Обработчик удаления подколонки
-  delBtn.addEventListener("click", async () => {
-    if (!confirm(`Удалить подколонку "${sub.title}" и все её карточки?`))
-      return;
-
-    const cardsContainer = document.getElementById(
-      `${sub.columnId}-${sub.subId}`
-    );
-    const directCardsContainer = document.getElementById(
-      `direct-cards-${sub.columnId}`
-    );
-    const subsContainer = document.querySelector(`#subs-${sub.columnId}`);
-
-    // Переносим карточки обратно в колонку
-    const cards = Array.from(cardsContainer.children);
-    for (const card of cards) {
-      const cardId = card.getAttribute("data-id");
-      if (directCardsContainer) {
-        directCardsContainer.appendChild(card);
-        await moveCardInDB(cardId, sub.columnId, null);
-      }
-    }
-
-    await deleteSubcolumnFromDB(sub.subId);
-
-    // Удаляем DOM-элемент подколонки
-    const subDiv = subsContainer.querySelector(`[data-sub="${sub.subId}"]`);
-    if (subDiv) subDiv.remove();
-
-    // Удаляем из массива subs
-    subs = subs.filter((s) => s.subId !== sub.subId);
-
-    // Если это была последняя подколонка — убираем контейнер и возвращаем direct drop
-    if (subs.length === 0 && subsContainer) {
-      subsContainer.remove();
-      enableDirectCardDrop(sub.columnId);
-    }
-  });
-
-  // 7) Обработчик добавления карточки
+  // 5) Обработчик кнопки “+ Добавить карточку”
   addCardBtn.addEventListener("click", () => {
     openAddCardModal(sub.columnId, sub.subId);
-  });
-
-  clearBtn.addEventListener("click", async () => {
-    if (!confirm(`Удалить ВСЕ карточки из подколонки "${sub.title}"?`)) return;
-
-    const cardsContainer = document.getElementById(
-      `${sub.columnId}-${sub.subId}`
-    );
-    const cards = Array.from(cardsContainer.children);
-    for (const card of cards) {
-      const cardId = card.getAttribute("data-id");
-      await deleteCardFromDB(cardId);
-      card.remove();
-    }
   });
 }
 
@@ -600,9 +501,7 @@ function renderSubcolumn(sub) {
 async function renderAllCards() {
   const allCards = await getAllCards();
   allCards.forEach((card) => {
-    const container = card.subId
-      ? document.getElementById(`${card.columnId}-${card.subId}`)
-      : document.getElementById(`direct-cards-${card.columnId}`);
+    const container = document.getElementById(`${card.columnId}-${card.subId}`);
     if (!container) return;
     const cardElem = createCardElement(card);
     container.appendChild(cardElem);
@@ -618,7 +517,7 @@ function createCardElement(card) {
   const cardDiv = document.createElement("div");
   cardDiv.classList.add("card");
 
-  // Добавляем класс в зависимости от типа карточки
+  // Тип карточки
   if (card.type === "locomotive") {
     cardDiv.classList.add("card-locomotive");
   } else if (card.type === "engineer") {
@@ -630,11 +529,9 @@ function createCardElement(card) {
   cardDiv.setAttribute("data-type", card.type);
   cardDiv.setAttribute("data-id", card.id);
 
-  // Основное содержимое карточки
   const contentWrapper = document.createElement("div");
   contentWrapper.classList.add("card-content");
 
-  // Фото (если есть)
   if (card.photoUrl) {
     const img = document.createElement("img");
     img.src = card.photoUrl;
@@ -643,11 +540,9 @@ function createCardElement(card) {
     contentWrapper.appendChild(img);
   }
 
-  // Текстовая часть
   const textDiv = document.createElement("div");
   textDiv.classList.add("card-text");
 
-  // Заголовок с названием
   const h4 = document.createElement("h4");
   if (card.type === "locomotive") {
     h4.textContent = `Тепловоз: ${card.name}`;
@@ -658,40 +553,29 @@ function createCardElement(card) {
   }
   textDiv.appendChild(h4);
 
-  // Поля в зависимости от типа карточки
   if (card.type === "locomotive") {
-    // Только код для тепловоза
     const pCode = document.createElement("p");
     pCode.innerHTML = `<strong>Код:</strong> ${card.code}`;
     textDiv.appendChild(pCode);
   } else {
-    // Для машиниста и помощника - должность и табельный номер
     const pPos = document.createElement("p");
-    pPos.innerHTML = `<strong>Должность:</strong> ${card.position}`;
-
+    pPos.innerHTML = `<strong>Позиция:</strong> ${card.position}`;
     const pCode = document.createElement("p");
-    pCode.innerHTML = `<strong>Табельный:</strong> ${card.code}`;
-
+    pCode.innerHTML = `<strong>Код:</strong> ${card.code}`;
     textDiv.append(pPos, pCode);
   }
 
   contentWrapper.appendChild(textDiv);
   cardDiv.appendChild(contentWrapper);
 
-  // Кнопки действий
   const actions = document.createElement("div");
   actions.classList.add("card-actions");
-
   const editBtn = document.createElement("button");
   editBtn.classList.add("edit-btn");
   editBtn.textContent = "✏️";
-  editBtn.title = "Редактировать";
-
   const delBtn = document.createElement("button");
   delBtn.classList.add("delete-btn");
   delBtn.textContent = "🗑️";
-  delBtn.title = "Удалить";
-
   actions.append(editBtn, delBtn);
   cardDiv.appendChild(actions);
 
@@ -760,7 +644,7 @@ async function createLocomotiveCard(columnId, subId) {
  * @param {string} subId
  */
 async function createEngineerCard(columnId, subId) {
-  const position = prompt("Вазифа машиниста:");
+  const position = prompt("Позиция машиниста:");
   if (!position) return;
   const name = prompt("ФИО машиниста:");
   if (!name) return;
@@ -809,135 +693,73 @@ function delegateCardActions() {
  * @param {HTMLElement} cardElem
  */
 async function openEditCardModal(cardElem) {
-  const type = cardElem.getAttribute("data-type");
   const id = cardElem.getAttribute("data-id");
 
   const tx = db.transaction("cards", "readonly");
   const store = tx.objectStore("cards");
   const getReq = store.get(id);
-
   getReq.onsuccess = function () {
     const card = getReq.result;
     if (!card) return;
 
-    // Общие элементы для всех типов карточек
-    const h4 = cardElem.querySelector("h4");
-    const paragraphs = cardElem.querySelectorAll("p");
-
     if (card.type === "locomotive") {
-      // Редактирование тепловоза
       const newName = prompt("Новое название тепловоза:", card.name);
       if (!newName) return;
       const newCode = prompt("Новый код тепловоза:", card.code);
       if (!newCode) return;
       const newPhoto = prompt("Новая ссылка на фото:", card.photoUrl || "");
+      card.photoUrl = newPhoto;
 
       card.name = newName;
       card.code = newCode;
-      card.photoUrl = newPhoto;
-
       updateCardInDB(card).then(() => {
-        h4.textContent = `Тепловоз: ${newName}`;
-        paragraphs[0].innerHTML = `<strong>Код:</strong> ${newCode}`;
-
-        // Обновление фото если оно есть
-        const img = cardElem.querySelector("img");
-        if (newPhoto) {
-          if (img) {
-            img.src = newPhoto;
-          } else {
-            const newImg = document.createElement("img");
-            newImg.src = newPhoto;
-            newImg.classList.add("card-photo-side");
-            cardElem
-              .querySelector(".card-content")
-              .insertBefore(newImg, cardElem.querySelector(".card-text"));
-          }
-        } else if (img) {
-          img.remove();
-        }
+        // Обновляем DOM после сохранения
+        cardElem.querySelector("h4").textContent = `Тепловоз: ${newName}`;
+        const pCode = cardElem.querySelector("p");
+        pCode.innerHTML = `<strong>Код:</strong> ${newCode}`;
+        updateCardPhoto(cardElem, newPhoto);
       });
-    } else if (card.type === "engineer") {
-      // Редактирование машиниста
-      const newPosition = prompt("Новая должность:", card.position);
+    } else {
+      const newPosition = prompt(
+        card.type === "assistant"
+          ? "Новая позиция помощника:"
+          : "Новая позиция машиниста:",
+        card.position
+      );
       if (!newPosition) return;
-      const newName = prompt("ФИО машиниста:", card.name);
+      const newName = prompt(
+        card.type === "assistant"
+          ? "Новое ФИО помощника:"
+          : "Новое ФИО машиниста:",
+        card.name
+      );
       if (!newName) return;
-      const newCode = prompt("Табельный номер:", card.code);
+      const newCode = prompt(
+        card.type === "assistant"
+          ? "Новый код помощника:"
+          : "Новый код машиниста:",
+        card.code
+      );
       if (!newCode) return;
-      const newPhoto = prompt("Ссылка на фото:", card.photoUrl || "");
+      const newPhoto = prompt("Новая ссылка на фото:", card.photoUrl || "");
+      card.photoUrl = newPhoto;
 
       card.position = newPosition;
       card.name = newName;
       card.code = newCode;
-      card.photoUrl = newPhoto;
-
       updateCardInDB(card).then(() => {
-        h4.textContent = `Машинист: ${newName}`;
-        paragraphs[0].innerHTML = `<strong>Должность:</strong> ${newPosition}`;
-        paragraphs[1].innerHTML = `<strong>Табельный:</strong> ${newCode}`;
-
-        // Обновление фото
-        const img = cardElem.querySelector("img");
-        if (newPhoto) {
-          if (img) {
-            img.src = newPhoto;
-          } else {
-            const newImg = document.createElement("img");
-            newImg.src = newPhoto;
-            newImg.classList.add("card-photo-side");
-            cardElem
-              .querySelector(".card-content")
-              .insertBefore(newImg, cardElem.querySelector(".card-text"));
-          }
-        } else if (img) {
-          img.remove();
-        }
-      });
-    } else if (card.type === "assistant") {
-      // Редактирование помощника машиниста
-      const newPosition = prompt("Новая должность помощника:", card.position);
-      if (!newPosition) return;
-      const newName = prompt("ФИО помощника:", card.name);
-      if (!newName) return;
-      const newCode = prompt("Табельный номер:", card.code);
-      if (!newCode) return;
-      const newPhoto = prompt("Ссылка на фото:", card.photoUrl || "");
-
-      card.position = newPosition;
-      card.name = newName;
-      card.code = newCode;
-      card.photoUrl = newPhoto;
-
-      updateCardInDB(card).then(() => {
-        h4.textContent = `Помощник: ${newName}`;
-        paragraphs[0].innerHTML = `<strong>Должность:</strong> ${newPosition}`;
-        paragraphs[1].innerHTML = `<strong>Табельный:</strong> ${newCode}`;
-
-        // Обновление фото
-        const img = cardElem.querySelector("img");
-        if (newPhoto) {
-          if (img) {
-            img.src = newPhoto;
-          } else {
-            const newImg = document.createElement("img");
-            newImg.src = newPhoto;
-            newImg.classList.add("card-photo-side");
-            cardElem
-              .querySelector(".card-content")
-              .insertBefore(newImg, cardElem.querySelector(".card-text"));
-          }
-        } else if (img) {
-          img.remove();
-        }
+        // Обновляем DOM после сохранения
+        const role = card.type === "assistant" ? "Помощник" : "Машинист";
+        cardElem.querySelector("h4").textContent = `${role}: ${newName}`;
+        const [pPos, pCode] = cardElem.querySelectorAll("p");
+        pPos.innerHTML = `<strong>Позиция:</strong> ${newPosition}`;
+        pCode.innerHTML = `<strong>Код:</strong> ${newCode}`;
+        updateCardPhoto(cardElem, newPhoto);
       });
     }
   };
-
-  getReq.onerror = function (event) {
-    console.error("Ошибка при получении карточки:", event.target.error);
-  };
 }
+
 /**
  * Удаляет карточку из DOM и из IndexedDB
  * @param {HTMLElement} cardElem
@@ -948,30 +770,27 @@ async function deleteCardHandler(cardElem) {
   await deleteCardFromDB(id);
   cardElem.remove();
 }
+function updateCardPhoto(cardElem, newPhoto) {
+  const contentWrapper = cardElem.querySelector(".card-content");
+  const existingImg = cardElem.querySelector("img");
+  if (newPhoto) {
+    if (existingImg) {
+      existingImg.src = newPhoto;
+    } else {
+      const img = document.createElement("img");
+      img.src = newPhoto;
+      img.alt = "Фото";
+      img.classList.add("card-photo-side");
+      contentWrapper.insertBefore(img, cardElem.querySelector(".card-text"));
+    }
+  } else if (existingImg) {
+    existingImg.remove();
+  }
+}
 
 // ========================================
 // 4) Инициализация: собираем воедино всё
 // ========================================
-
-function enableDirectCardDrop(columnId) {
-  const directCardsContainer = document.getElementById(
-    `direct-cards-${columnId}`
-  );
-  if (!directCardsContainer) return;
-
-  new Sortable(directCardsContainer, {
-    group: "cards",
-    animation: 150,
-    ghostClass: "sortable-ghost",
-    onEnd: async (evt) => {
-      const cardElem = evt.item;
-      const cardId = cardElem.getAttribute("data-id");
-      await moveCardInDB(cardId, columnId, null);
-    },
-  });
-
-  directCardsContainer.style.display = "block";
-}
 
 /**
  * Главный init-функция, срабатывающая после загрузки DOM
