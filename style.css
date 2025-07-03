@@ -108,7 +108,12 @@ body {
   justify-content: space-between;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  background: rgba(34, 174, 255, 0.85);
+  background: #094579;
+  background: radial-gradient(
+    circle,
+    rgba(9, 69, 121, 0.83) 0%,
+    rgba(0, 212, 255, 0.86) 100%
+  );
   align-items: center;
   padding: 12px;
 }
