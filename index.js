@@ -89,7 +89,12 @@ function getAllColumns() {
     const tx = db.transaction("columns", "readonly");
     const store = tx.objectStore("columns");
     const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const result = request.result;
+      // Сортировка по полю order
+      result.sort((a, b) => a.order - b.order);
+      resolve(result);
+    };
     request.onerror = (e) => reject(e.target.error);
   });
 }

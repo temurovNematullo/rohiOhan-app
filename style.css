@@ -88,7 +88,7 @@ body {
 /* --------------------- */
 /* Основные колонки */
 .column {
-  background: rgba(217, 252, 255, 0.7);
+  background: rgba(217, 230, 255, 0.7);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -104,14 +104,17 @@ body {
 
 .column-header {
   display: flex;
+  height: 26px;
   justify-content: space-between;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  background: rgba(134, 212, 212, 0.85);
+  background: rgba(34, 174, 255, 0.85);
   align-items: center;
   padding: 12px;
 }
-
+h2 {
+  font-size: 24px !important;
+}
 .column-header h2 {
   margin: 0;
   font-size: 18px;
@@ -183,27 +186,40 @@ body {
   flex-direction: column;
   position: relative;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  flex: 1 1 100%; /* Одна колонка по умолчанию */
+  flex: 1 1 calc(50% - 12px); /* По умолчанию — две подколонки в ряд */
 }
 
+/* 3 подколонки — три в ряд */
+.subcolumns:has(.subcolumn:nth-child(n + 3)) .subcolumn {
+  flex: 1 1 calc(33.333% - 12px);
+}
+
+/* 4 подколонки — четыре в ряд */
+.subcolumns:has(.subcolumn:nth-child(n + 4)) .subcolumn {
+  flex: 1 1 calc(25% - 12px);
+}
+
+/* 5 подколонок — пять в ряд */
+.subcolumns:has(.subcolumn:nth-child(n + 5)) .subcolumn {
+  flex: 1 1 calc(20% - 12px);
+}
+
+/* 6 и больше — шесть в ряд */
 .subcolumns:has(.subcolumn:nth-child(n + 6)) .subcolumn {
-  flex: 1 1 calc(50% - 12px); /* Две колонки, если подколонок 6 и больше */
+  flex: 1 1 calc(16.666% - 12px);
   min-width: 240px;
   max-width: 100%; /* не ограничиваем сверху */
   align-self: flex-start; /* добавьте это, чтобы каждая подколонка имела свою высоту */
 }
 
 .subcolumn-header {
-  display: flex;
+  height: 24px;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px;
-  background: #ffe6ec;
+  background: rgba(69, 187, 255, 0.85);
   text-align: center;
-  font-size: 16px;
-  box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.06);
+  font-size: 14px;
+  box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.2);
   border: none;
 }
 
